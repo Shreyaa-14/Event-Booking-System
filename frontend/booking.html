@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Book Event | EventSphere</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="booking-page">
+
+<div class="booking-screen">
+    <div class="booking-panel" id="bookingPanel">
+        <p class="eyebrow center">EventSphere</p>
+        <h1 id="eventName">Event</h1>
+        <p class="booking-subtitle">You can book only 1 ticket for yourself.</p>
+
+        <div class="booking-note">
+            <p>After successful booking, a QR pass will be generated for entry verification.</p>
+        </div>
+
+        <div class="action-row vertical">
+            <button onclick="bookEvent()">Confirm Booking</button>
+            <button type="button" class="secondary-btn" onclick="window.location.href='student.html'">Back</button>
+        </div>
+    </div>
+</div>
+
+<div id="toastBox" class="toast-box"></div>
+<script src="js/booking.js"></script>
+</body>
+</html>

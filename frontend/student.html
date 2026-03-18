@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Dashboard | EventSphere</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="student-page">
+
+<div class="app-shell">
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">EventSphere</p>
+            <h1>Student Dashboard</h1>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </header>
+
+    <section class="profile-card modern-card" id="profileCard"></section>
+
+    <section class="modern-card">
+        <div class="section-header compact">
+            <div>
+                <p class="eyebrow">Explore</p>
+                <h2>Upcoming Events</h2>
+            </div>
+        </div>
+
+        <div class="filter-bar modern-filter">
+            <input type="text" id="searchInput" placeholder="Search upcoming events">
+            <select id="filterCategory">
+                <option value="">All Categories</option>
+                <option value="Technical">Technical</option>
+                <option value="Cultural">Cultural</option>
+                <option value="Sports">Sports</option>
+                <option value="Workshop">Workshop</option>
+                <option value="Seminar">Seminar</option>
+                <option value="Other">Other</option>
+            </select>
+            <button onclick="loadEvents()">Search</button>
+        </div>
+
+        <div id="events" class="grid cards-grid"></div>
+    </section>
+
+    <section class="modern-card">
+        <div class="section-header compact">
+            <div>
+                <p class="eyebrow">Your Activity</p>
+                <h2>Your Bookings</h2>
+            </div>
+        </div>
+
+        <div id="bookings" class="grid cards-grid"></div>
+    </section>
+</div>
+
+<div class="modal-backdrop" id="qrModal">
+    <div class="modal-card">
+        <button class="modal-close" onclick="closeQrModal()">×</button>
+        <h3>Your Event QR</h3>
+        <img id="qrModalImage" src="" alt="QR Code">
+    </div>
+</div>
+
+<div id="toastBox" class="toast-box"></div>
+<script src="js/student.js"></script>
+</body>
+</html>
