@@ -185,6 +185,11 @@ async function fetchEvents() {
 }
 
 function editEvent(event) {
+  if (event.status === "Cancelled") {
+    showToast("Cancelled events cannot be edited.", "error");
+    return;
+  }
+
   document.getElementById("eventId").value = event._id;
   document.getElementById("name").value = event.name;
   document.getElementById("venue").value = event.venue;
@@ -194,6 +199,33 @@ function editEvent(event) {
   document.getElementById("description").value = event.description || "";
   document.getElementById("formTitle").innerText = "Edit Event";
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function cancelEvent(id) {
+  if (!confirm("Cancel this event? All booked students will be notified by email.")) return;
+
+  try {
+    const res = await fetch(`${BASE}/events/${id}/cancel`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      showToast(data.message || "Failed to cancel event.", "error");
+      return;
+    }
+
+    showToast(data.message || "Event cancelled successfully.");
+    fetchEvents();
+    loadAnalytics();
+  } catch (err) {
+    console.error("Cancel event error:", err);
+    showToast("Server error while cancelling event.", "error");
+  }
 }
 
 async function deleteEvent(id) {
@@ -239,6 +271,7 @@ function displayEvents(events) {
       : `<div class="poster-placeholder">No Poster</div>`;
 
     const isSoldOut = event.tickets <= 0;
+    const isCancelled = event.status === "Cancelled";
 
     const div = document.createElement("div");
     div.className = "event-card modern-card";
@@ -247,8 +280,8 @@ function displayEvents(events) {
       ${poster}
       <div class="card-topline">
         <span class="badge">${event.category || "Other"}</span>
-        <span class="badge ${isSoldOut ? "badge-danger" : "badge-success"}">
-          ${isSoldOut ? "Sold Out" : `${event.tickets} Left`}
+        <span class="badge ${isCancelled || isSoldOut ? "badge-danger" : "badge-success"}">
+          ${isCancelled ? "Cancelled" : isSoldOut ? "Sold Out" : `${event.tickets} Left`}
         </span>
       </div>
       <h4>${event.name}</h4>
@@ -256,10 +289,15 @@ function displayEvents(events) {
       <p><b>Date:</b> ${formatDisplayDate(event.date)}</p>
       <p><b>Total Tickets:</b> ${event.totalTickets}</p>
       <p><b>Tickets Sold:</b> ${sold}</p>
+      <p><b>Status:</b> ${event.status || "Active"}</p>
       <p><b>Description:</b> ${event.description || "N/A"}</p>
       <div class="action-row">
-        <button onclick='editEvent(${JSON.stringify(event).replace(/'/g, "&apos;")})'>Edit</button>
-        <button class="danger-btn" onclick="deleteEvent('${event._id}')">Delete</button>
+        ${
+          isCancelled
+            ? `<button disabled>Cancelled</button>`
+            : `<button onclick='editEvent(${JSON.stringify(event).replace(/'/g, "&apos;")})'>Edit</button>
+               <button class="danger-btn" onclick="cancelEvent('${event._id}')">Cancel Event</button>`
+        }
       </div>
     `;
 

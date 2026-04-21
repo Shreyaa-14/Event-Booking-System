@@ -85,22 +85,27 @@ async function loadEvents() {
                 ? `<img class="poster-img" src="${e.poster}" alt="${e.name}">`
                 : `<div class="poster-placeholder">No Poster</div>`;
 
+            const isCancelled = e.status === "Cancelled";
+
             container.innerHTML += `
             <div class="card modern-card">
                 ${poster}
                 <div class="card-topline">
                     <span class="badge">${e.category || "Other"}</span>
-                    <span class="badge ${e.tickets > 0 ? "badge-success" : "badge-danger"}">
-                        ${e.tickets > 0 ? `${e.tickets} Left` : "Sold Out"}
+                    <span class="badge ${isCancelled || e.tickets <= 0 ? "badge-danger" : "badge-success"}">
+                        ${isCancelled ? "Cancelled" : e.tickets > 0 ? `${e.tickets} Left` : "Sold Out"}
                     </span>
                 </div>
                 <h4>${e.name}</h4>
                 <p><b>Venue:</b> ${e.venue}</p>
                 <p><b>Date:</b> ${formatDisplayDate(e.date)}</p>
                 <p><b>Tickets Sold:</b> ${sold}</p>
+                <p><b>Status:</b> ${e.status || "Active"}</p>
                 <p><b>Description:</b> ${e.description || "N/A"}</p>
                 ${
-                    e.tickets > 0
+                    isCancelled
+                    ? `<button disabled>Event Cancelled</button>`
+                    : e.tickets > 0
                     ? `<button onclick="goToBooking('${e._id}','${e.name.replace(/'/g, "\\'")}')">Book Now</button>`
                     : `<button disabled>Sold Out</button>`
                 }
@@ -132,7 +137,6 @@ async function loadBookings() {
             return;
         }
 
-        // show only confirmed bookings
         const activeBookings = bookings.filter(b => b.status === "Confirmed");
 
         if (activeBookings.length === 0) {
@@ -142,13 +146,16 @@ async function loadBookings() {
 
         activeBookings.forEach(b => {
             const eventName = b.event ? b.event.name : "Deleted Event";
+            const isEventCancelled = b.event?.status === "Cancelled";
 
             container.innerHTML += `
             <div class="card modern-card">
                 <div class="card-topline">
-                    <span class="badge">${b.status}</span>
+                    <span class="badge ${isEventCancelled ? "badge-danger" : ""}">
+                        ${isEventCancelled ? "Event Cancelled" : b.status}
+                    </span>
                     <span class="badge ${b.entryStatus === "CheckedIn" ? "badge-success" : "badge-muted"}">
-                        ${b.entryStatus || "Pending"}
+                        ${isEventCancelled ? "Not Valid" : b.entryStatus || "Pending"}
                     </span>
                 </div>
                 <h4>${eventName}</h4>
@@ -161,17 +168,26 @@ async function loadBookings() {
                     : ""
                 }
                 ${
-                    b.qrCode && b.status === "Confirmed"
+                    isEventCancelled
+                    ? `<p style="color:#d32f2f; font-weight:600;">This event has been cancelled by admin.</p>`
+                    : ""
+                }
+                ${
+                    b.qrCode && b.status === "Confirmed" && !isEventCancelled
                     ? `<img class="booking-qr-thumb" src="${b.qrCode}" alt="QR" onclick="openQrModal('${b.qrCode}')">`
                     : ""
                 }
                 <div class="action-row">
                     ${
-                        b.qrCode && b.status === "Confirmed"
+                        b.qrCode && b.status === "Confirmed" && !isEventCancelled
                         ? `<button class="secondary-btn" onclick="openQrModal('${b.qrCode}')">View QR</button>`
                         : ""
                     }
-                    <button class="danger-btn" onclick="cancelBooking('${b._id}')">Cancel Booking</button>
+                    ${
+                        !isEventCancelled
+                        ? `<button class="danger-btn" onclick="cancelBooking('${b._id}')">Cancel Booking</button>`
+                        : `<button disabled>Cancelled by Admin</button>`
+                    }
                 </div>
             </div>`;
         });

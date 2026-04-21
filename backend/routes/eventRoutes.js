@@ -2,6 +2,7 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const nodemailer = require("nodemailer");
 const Event = require("../models/Event");
 const Booking = require("../models/Booking");
 const auth = require("../middleware/authMiddleware");
@@ -33,6 +34,14 @@ const upload = multer({
     } else {
       cb(new Error("Only JPG, PNG and WEBP images are allowed."));
     }
+  }
+});
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
@@ -88,7 +97,8 @@ router.post("/", auth, upload.single("poster"), async (req, res) => {
       category,
       description,
       poster,
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      status: "Active"
     });
 
     res.json(event);
@@ -222,6 +232,60 @@ router.get("/analytics/summary", auth, async (req, res) => {
   } catch (err) {
     console.error("Analytics error:", err);
     res.status(500).json({ message: "Server error while fetching analytics." });
+  }
+});
+
+router.patch("/:id/cancel", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "Admin") {
+      return res.status(403).json({ message: "Admin only." });
+    }
+
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    if (event.status === "Cancelled") {
+      return res.status(400).json({ message: "Event already cancelled." });
+    }
+
+    event.status = "Cancelled";
+    await event.save();
+
+    const bookings = await Booking.find({
+      event: event._id,
+      status: "Confirmed"
+    }).populate("user", "name email");
+
+    for (const booking of bookings) {
+      if (!booking.user?.email) continue;
+
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: booking.user.email,
+          subject: `Event Cancelled: ${event.name}`,
+          html: `
+            <p>Dear ${booking.user.name || "Student"},</p>
+            <p>We regret to inform you that your booked event has been cancelled.</p>
+            <p><b>Event:</b> ${event.name}</p>
+            <p><b>Venue:</b> ${event.venue}</p>
+            <p><b>Date:</b> ${new Date(event.date).toLocaleDateString("en-IN")}</p>
+            <p>This cancellation will also be reflected on your EventSphere dashboard.</p>
+            <br>
+            <p>Regards,<br>EventSphere Team</p>
+          `
+        });
+      } catch (mailErr) {
+        console.error(`Failed to send cancellation email to ${booking.user.email}:`, mailErr);
+      }
+    }
+
+    res.json({ message: "Event cancelled and students notified successfully." });
+  } catch (err) {
+    console.error("Cancel event error:", err);
+    res.status(500).json({ message: "Server error while cancelling event." });
   }
 });
 

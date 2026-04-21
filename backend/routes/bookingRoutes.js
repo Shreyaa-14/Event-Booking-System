@@ -57,9 +57,20 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "You have already booked this event." });
     }
 
+    const event = await Event.findById(eventId);
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    if (event.status === "Cancelled") {
+      return res.status(400).json({ message: "This event has been cancelled." });
+    }
+
     const updatedEvent = await Event.findOneAndUpdate(
       {
         _id: eventId,
+        status: "Active",
         date: { $gte: getTodayStart() },
         tickets: { $gte: 1 }
       },
@@ -85,7 +96,6 @@ router.post("/", auth, async (req, res) => {
         qrCode
       });
     } catch (dbErr) {
-      // rollback ticket in case duplicate booking slips in via race
       await Event.findByIdAndUpdate(eventId, { $inc: { tickets: 1 } });
 
       if (dbErr.code === 11000) {
@@ -128,7 +138,7 @@ router.patch("/:id/cancel", auth, async (req, res) => {
     const booking = await Booking.findOne({
       _id: req.params.id,
       user: req.user.id
-    });
+    }).populate("event");
 
     if (!booking) {
       return res.status(404).json({ message: "Booking not found." });
@@ -138,13 +148,19 @@ router.patch("/:id/cancel", auth, async (req, res) => {
       return res.status(400).json({ message: "Booking already cancelled." });
     }
 
+    if (booking.event?.status === "Cancelled") {
+      return res.status(400).json({
+        message: "This event has already been cancelled by admin."
+      });
+    }
+
     booking.status = "Cancelled";
     booking.entryStatus = "Pending";
     booking.checkedInAt = null;
     await booking.save();
 
     if (booking.event) {
-      await Event.findByIdAndUpdate(booking.event, {
+      await Event.findByIdAndUpdate(booking.event._id, {
         $inc: { tickets: 1 }
       });
     }
@@ -171,7 +187,7 @@ router.post("/scan", auth, async (req, res) => {
       confirmationId
     })
       .populate("user", "name email")
-      .populate("event", "name venue date");
+      .populate("event", "name venue date status");
 
     if (!booking) {
       return res.status(404).json({ message: "Invalid QR / booking not found." });
@@ -183,6 +199,18 @@ router.post("/scan", auth, async (req, res) => {
 
     if (!booking.event) {
       return res.status(400).json({ message: "Associated event not found." });
+    }
+
+    if (booking.event.status === "Cancelled") {
+      return res.status(400).json({
+        message: "This event has been cancelled by admin.",
+        booking: {
+          confirmationId: booking.confirmationId,
+          studentName: booking.user?.name || "N/A",
+          studentEmail: booking.user?.email || "N/A",
+          eventName: booking.event?.name || "N/A"
+        }
+      });
     }
 
     if (booking.entryStatus === "CheckedIn") {

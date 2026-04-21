@@ -14,7 +14,12 @@ const eventSchema = new mongoose.Schema(
     },
     description: { type: String, default: "", trim: true },
     poster: { type: String, default: "" },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    status: {
+      type: String,
+      enum: ["Active", "Cancelled"],
+      default: "Active"
+    }
   },
   { timestamps: true }
 );
